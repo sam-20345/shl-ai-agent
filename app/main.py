@@ -16,11 +16,20 @@ agent = SHLAgent()
 
 
 @app.get("/", response_class=HTMLResponse)
-def home(request: Request):
-    return templates.TemplateResponse(
-        "index.html",
-        {"request": request}
-    )
+def home():
+    return """
+    <html>
+    <body style="
+        background:black;
+        color:lime;
+        font-size:60px;
+        text-align:center;
+        padding-top:150px;
+    ">
+        FRONTEND VERSION 2
+    </body>
+    </html>
+    """
 
 
 @app.get("/health")
