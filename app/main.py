@@ -11,6 +11,15 @@ app = FastAPI(
 agent = SHLAgent()
 
 
+@app.get("/")
+def root():
+    return {
+        "message": "SHL AI Assessment Recommender API",
+        "docs": "/docs",
+        "health": "/health"
+    }
+
+
 @app.get("/health")
 def health():
     return {
