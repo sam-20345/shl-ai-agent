@@ -1,16 +1,17 @@
 from app.conversation import ConversationAnalyzer
-from app.retriever import HybridRetriever
+from app.guardrails import Guardrails
 from app.recommender import RecommendationEngine
-from app.llm import generate_recommendation_reply
+from app.retriever import HybridRetriever
+
+retriever = HybridRetriever()
+guardrails = Guardrails()
+analyzer = ConversationAnalyzer()
+recommender = RecommendationEngine()
 
 
 class SHLAgent:
 
     def __init__(self):
-        self.analyzer = ConversationAnalyzer()
-        self.retriever = HybridRetriever()
-        self.recommender = RecommendationEngine()
-
         self.vague_queries = {
             "assessment",
             "test",
@@ -26,13 +27,28 @@ class SHLAgent:
         }
 
     def needs_clarification(self, query: str) -> bool:
-        return query.lower().strip() in self.vague_queries
+        query = query.lower().strip()
+        return query in self.vague_queries
 
     def process(self, messages):
 
         latest_message = messages[-1].content.strip()
 
-        # Handle vague queries
+        # -----------------------
+        # Guardrails
+        # -----------------------
+        allowed, reply = guardrails.check(latest_message)
+
+        if not allowed:
+            return {
+                "reply": reply,
+                "recommendations": [],
+                "end_of_conversation": False,
+            }
+
+        # -----------------------
+        # Clarification
+        # -----------------------
         if self.needs_clarification(latest_message):
             return {
                 "reply": (
@@ -43,58 +59,53 @@ class SHLAgent:
                 "end_of_conversation": False,
             }
 
-        # Extract structured hiring requirements using Gemini
-        requirements = self.analyzer.extract(messages)
+        # -----------------------
+        # Extract requirements
+        # -----------------------
+        requirements = analyzer.extract(messages)
 
-        # Retrieve top matching assessments
-        candidates = self.retriever.search(
-            requirements,
-            top_k=20,
-        )
+        # -----------------------
+        # Retrieve
+        # -----------------------
+        candidates = retriever.search(requirements)
 
-        # Rank assessments
-        results = self.recommender.rank(
+        # -----------------------
+        # Rank
+        # -----------------------
+        ranked = recommender.rank(
             requirements,
             candidates,
-            top_k=5,
+            top_k=10,
         )
 
-        # Build API response
         recommendations = []
 
-        for item in results:
+        for item in ranked:
 
             recommendations.append(
-    {
-        "name": item.get("name", ""),
-        "description": item.get("description", ""),
-        "duration": item.get("duration", ""),
-        "job_levels": item.get("job_levels", []),
-        "assessment_type": item.get("keys", []),
-        "url": item.get("link", ""),
-    }
-)
+                {
+                    "name": item.get("name", ""),
+                    "url": item.get("url", item.get("link", "")),
+                    "test_type": (
+    item.get("keys", ["Unknown"])[0]
+    if item.get("keys")
+    else "Unknown"
+),
+                }
+            )
 
-        # No matches
         if not recommendations:
             return {
                 "reply": (
-                    "I couldn't find suitable assessments. "
-                    "Could you provide more details such as role, skills, "
-                    "experience level or job function?"
+                    "I couldn't find a suitable SHL assessment. "
+                    "Could you provide more details about the role or required skills?"
                 ),
                 "recommendations": [],
                 "end_of_conversation": False,
             }
 
-        # Generate AI explanation
-        reply = generate_recommendation_reply(
-            requirements,
-            results,
-        )
-
         return {
-            "reply": reply,
+            "reply": f"I found {len(recommendations)} matching SHL assessment(s).",
             "recommendations": recommendations,
             "end_of_conversation": False,
         }
