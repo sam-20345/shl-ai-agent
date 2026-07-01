@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -10,26 +12,22 @@ app = FastAPI(
     version="1.0.0"
 )
 
-templates = Jinja2Templates(directory="templates")
+# Absolute path to templates folder
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+templates = Jinja2Templates(
+    directory=str(BASE_DIR / "templates")
+)
 
 agent = SHLAgent()
 
 
 @app.get("/", response_class=HTMLResponse)
-def home():
-    return """
-    <html>
-    <body style="
-        background:black;
-        color:lime;
-        font-size:60px;
-        text-align:center;
-        padding-top:150px;
-    ">
-        FRONTEND VERSION 2
-    </body>
-    </html>
-    """
+def home(request: Request):
+    return templates.TemplateResponse(
+        "index.html",
+        {"request": request}
+    )
 
 
 @app.get("/health")
