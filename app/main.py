@@ -1,8 +1,4 @@
-from pathlib import Path
-
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
+from fastapi import FastAPI
 
 from app.agent import SHLAgent
 from app.models import ChatRequest
@@ -12,23 +8,17 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Absolute path to templates folder
-BASE_DIR = Path(__file__).resolve().parent.parent
-
-templates = Jinja2Templates(
-    directory=str(BASE_DIR / "templates")
-)
-
 agent = SHLAgent()
 
 
-@app.get("/", response_class=HTMLResponse)
-def home(request: Request):
-    return templates.TemplateResponse(
-        request=request,
-        name="index.html",
-        context={}
-    )
+@app.get("/")
+def root():
+    return {
+        "message": "SHL AI Assessment Recommender API",
+        "documentation": "/docs",
+        "health": "/health",
+        "chat": "/chat"
+    }
 
 
 @app.get("/health")
